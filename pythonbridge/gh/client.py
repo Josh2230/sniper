@@ -1,6 +1,6 @@
 from __future__ import annotations  # issues with type hints
 
-from github import Github, PaginatedList, File
+from github import Github, PaginatedList, File, Repository
 from pythonbridge.gh.auth import get_installation_token
 
 
@@ -12,14 +12,9 @@ def create_reaction(payload: dict, reaction_type: str = "eyes") -> None:
             Expected keys: "comment_id", "repository.full_name", "installation.id"
         reaction_type: The reaction to add (default "eyes").
     """
-    repo_full_name = payload.get("repository").get("full_name")
-    installation_id = payload.get("installation").get("id")
     comment_id = payload.get("comment_id")
-    installation_token = get_installation_token(installation_id)
-
     pr_number = payload.get("number")
-    github_client = Github(installation_token)
-    repo = github_client.get_repo(repo_full_name)
+    repo = _get_repo(payload)
     comment = repo.get_issue(pr_number).get_comment(comment_id)
     comment.create_reaction(reaction_type)
 
@@ -34,15 +29,8 @@ def get_diff(payload: dict) -> PaginatedList[File]:
     Returns:
         PaginatedList of File objects representing changed files in the PR.
     """
-    # Get installation token
     pr_number = payload.get("number")
-    repo_full_name = payload.get("repository").get("full_name")
-    installation_id = payload.get("installation").get("id")
-    installation_token = get_installation_token(installation_id)
-
-    # Create Github client and get changed files from PR
-    github_client = Github(installation_token)
-    repo = github_client.get_repo(repo_full_name)
+    repo = _get_repo(payload)
     pr = repo.get_pull(pr_number)
     files = pr.get_files()
 
@@ -61,12 +49,7 @@ def post_review(payload: dict, reviews: list[dict]) -> None:
         reviews: List of review dicts with keys "filename" and "review".
     """
     pr_number = payload.get("number")
-    repo_full_name = payload.get("repository").get("full_name")
-    installation_id = payload.get("installation").get("id")
-    installation_token = get_installation_token(installation_id)
-
-    github_client = Github(installation_token)
-    repo = github_client.get_repo(repo_full_name)
+    repo = _get_repo(payload)
     pr = repo.get_pull(pr_number)
 
     body = ""
@@ -87,11 +70,24 @@ def post_comment(payload: dict, body: str) -> None:
         body: The comment body to post.
     """
     pr_number = payload.get("number")
+    repo = _get_repo(payload)
+    pr = repo.get_pull(pr_number)
+    pr.create_issue_comment(body)
+
+
+def _get_repo(payload: dict) -> Repository:
+    """Retrieves the GitHub repository linked to the payload
+
+    Args:
+        payload (dict): GitHub webhook payload containing PR details.
+            Expected keys: "number", "repository.full_name", "installation.id"
+
+    Returns:
+        Repository: The Repository object representing the GitHub repo
+    """
     repo_full_name = payload.get("repository").get("full_name")
     installation_id = payload.get("installation").get("id")
     installation_token = get_installation_token(installation_id)
-
     github_client = Github(installation_token)
-    repo = github_client.get_repo(repo_full_name)
-    pr = repo.get_pull(pr_number)
-    pr.create_issue_comment(body)
+
+    return github_client.get_repo(repo_full_name)
