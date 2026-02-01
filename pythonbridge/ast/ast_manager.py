@@ -9,7 +9,7 @@ import os
 # parser = Parser(PY_LANGUAGE)
 
 
-class AST_manager:
+class ASTManager:
     """
     Manages Abstract Syntax Tree (AST) parsing and relationship extraction for Python files.
 
